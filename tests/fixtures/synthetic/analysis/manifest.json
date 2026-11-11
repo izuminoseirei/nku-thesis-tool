@@ -1,0 +1,45 @@
+{
+  "directory": "analysis",
+  "generator": "generate.py",
+  "syntheticOnly": true,
+  "samples": [
+    {
+      "file": "analysis_compliant.docx",
+      "sha256": "4C04EADC02E8DFB063B9BDD6C1B3C9199D065A8F3E910D7F416F9F81F1702FB9",
+      "description": "A4、上下 3.8 cm / 左右 3.2 cm 页边距、宋体 + Times New Roman 12 pt、两端对齐、首行缩进 2 字符、固定值 20 pt。第一章三句正文 + 参考文献一条。",
+      "expected": "analyze 输出 0 条不符合，且「未检查」清单非空（未检查不等于通过）"
+    },
+    {
+      "file": "analysis_noncompliant.docx",
+      "sha256": "3AC84DD5A9628F61828035ABD03E87771BCB6BBE1E5D40DF05EF711CEA40D670",
+      "description": "与合规样本同一个基础文档，只把第一段正文改成黑体 / Arial 10.5 pt、左对齐、0 缩进、单倍行距、段前段后各 6 pt。",
+      "expected": "analyze 输出 8 条不符合（字体 2、字号 1、对齐 1、缩进 1、行距 1、段前 1、段后 1）"
+    }
+  ],
+  "regeneration": {
+    "when": "2026-11-11",
+    "why": "两份 docx 原先直接由 generate_analysis_samples.py 落盘，没有 manifest，verify_fixtures.py 的清单一致性扫不到这个目录；同时 ZIP 条目时间戳取的是生成时刻，整文件字节不可复现。此处按 full-thesis/ 的做法收进独立目录并补 manifest。",
+    "previousSha256": {
+      "analysis_compliant.docx": "0DD96E1668F0CEE1FF8C05D8AC93D57F95B4CF24F9A97C33B8A30CEA25DD4841",
+      "analysis_noncompliant.docx": "ABE3D66FA7FC1E95AB5CF6B98FE70C009321BFD056EA49B62EE2B24A32E4AC83"
+    },
+    "unchanged": [
+      "17 个部件的解压字节一字未改（正文、字体、字号、对齐、缩进、行距、页边距、段前后均同上一版）",
+      "文件长度仍为 37254 / 37280 字节；哈希变化只来自容器头部的时间戳",
+      "C# 侧的预期不变：合规样本 0 条不符合、未检查非空，非合规样本 8 条不符合"
+    ]
+  },
+  "containerNormalization": {
+    "when": "2026-11-11",
+    "why": "python-docx 的 save() 用当前时刻当 ZIP 条目时间戳，同一个生成器换分钟跑出的整文件字节就不同，哈希不能当判据。format-samples/ 与 full-thesis/ 已固定时间戳，这个目录补上同一步。",
+    "whatChanged": [
+      "build_bytes() 末尾统一过 _normalize()：条目顺序原样保留，date_time 换成 (2000, 1, 1, 0, 0, 0)，三个目录同一个常量",
+      "generate.py --check 的判据是整文件字节，不再是逐部件比对"
+    ],
+    "verifiedByteIdenticalAcrossEnv": [
+      "Python 3.13.14 + python-docx 1.2.0",
+      "Python 3.13.14 + python-docx 1.1.2"
+    ]
+  },
+  "refactorNote": "原先的 generate_analysis_samples.py 已移入本目录并改名为 generate.py，与其它五组生成器同形：清单常量 SAMPLES、构建函数 build_bytes(name) 返回 docx 字节。顶层仍只导入标准库，清单核对照样能在没装 python-docx 的干净检出下跑。"
+}

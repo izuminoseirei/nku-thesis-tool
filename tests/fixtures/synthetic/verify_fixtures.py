@@ -11,9 +11,9 @@
   * 清单一致性：manifest.samples / 生成器清单 / 磁盘上的 .docx 三方比对，
     抓「新增样本忘写 manifest」「孤儿 docx」「生成器没覆盖」这类漏项。
   * 可选重建：--with-rebuild 时，若本机装有 python-docx（full-thesis 另需
-    Pillow 与 lxml），再把 format-samples 与 full-thesis 的样本各做一遍逐部件
-    重建校验；缺依赖就**整组**跳过并说明原因，不算失败。默认不开，因为这条
-    路径依赖第三方包。
+    Pillow 与 lxml），再把 analysis、format-samples 与 full-thesis 的样本各做
+    一遍逐部件重建校验；缺依赖就**整组**跳过并说明原因，不算失败。默认不开，
+    因为这条路径依赖第三方包。
 
 用法（从仓库根目录）：
     python3 tests/fixtures/synthetic/verify_fixtures.py
@@ -49,6 +49,7 @@ STRUCTURE_VERIFIERS = [
 # 重建需要第三方依赖，只在 --with-rebuild 且依赖全部可用时执行。
 REBUILD_VERIFIERS = [
     ("format-samples", "generate.py", "SAMPLES", "build_bytes", ("docx",)),
+    ("analysis", "generate.py", "SAMPLES", "build_bytes", ("docx",)),
     ("full-thesis", "generate.py", "SAMPLES", "build_bytes", ("docx", "PIL", "lxml")),
 ]
 
@@ -59,6 +60,7 @@ LIST_SOURCES = [
     ("formula", "generate.py", "SAMPLES"),
     ("demo", "generate_samples.py", "SAMPLES"),
     ("demo", "generate_checked_sample.py", "SAMPLES"),
+    ("analysis", "generate.py", "SAMPLES"),
     ("format-samples", "generate.py", "SAMPLES"),
     ("full-thesis", "generate.py", "SAMPLES"),
     ("citation-footnotes", "generate.py", "SAMPLES"),
@@ -69,6 +71,7 @@ LIST_SPECS = [
     ("document", True),
     ("formula", True),
     ("demo", True),
+    ("analysis", True),
     ("format-samples", True),
     ("full-thesis", True),
     ("citation-footnotes", True),

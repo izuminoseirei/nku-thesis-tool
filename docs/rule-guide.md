@@ -13,7 +13,7 @@
 
 ```powershell
 # 使用 rules/nku-graduate/general.yaml（draft）
-dotnet run --project src/ThesisEngine.Cli -- analyze tests/fixtures/synthetic/analysis_compliant.docx
+dotnet run --project src/ThesisEngine.Cli -- analyze tests/fixtures/synthetic/analysis/analysis_compliant.docx
 
 # 显式指定 2026 正文 profile
 dotnet run --project src/ThesisEngine.Cli -- analyze <file.docx> --profile nku-graduate-2026-body
@@ -131,9 +131,9 @@ meta:
 
 ### 回归样本
 
-- `tests/fixtures/synthetic/analysis_compliant.docx`：A4、3.8/3.2 cm 页边距、宋体/Times New Roman 12 pt、两端对齐、首行缩进 2 字符、固定值 20 pt；预期 0 条不符合、未检查非空。
-- `tests/fixtures/synthetic/analysis_noncompliant.docx`：同一文档的第一段故意改为黑体/Arial 10.5 pt、左对齐、0 缩进、单倍行距、段前段后 6 pt；预期 8 条不符合。
+- `tests/fixtures/synthetic/analysis/analysis_compliant.docx`：A4、3.8/3.2 cm 页边距、宋体/Times New Roman 12 pt、两端对齐、首行缩进 2 字符、固定值 20 pt；预期 0 条不符合、未检查非空。
+- `tests/fixtures/synthetic/analysis/analysis_noncompliant.docx`：同一文档的第一段故意改为黑体/Arial 10.5 pt、左对齐、0 缩进、单倍行距、段前段后 6 pt；预期 8 条不符合。
 - `tests/fixtures/synthetic/full-thesis/synthetic_complete_thesis.docx`：完整合成论文，用于验证问题合并、覆盖表、JSON 和确定性。
-- 生成脚本：`tests/fixtures/synthetic/generate_analysis_samples.py`。
+- 生成脚本：`tests/fixtures/synthetic/analysis/generate.py`，`--check` 比整文件字节；说明见 [analysis/README.md](../tests/fixtures/synthetic/analysis/README.md)。
 
 这些样本是合成数据，不代表真实论文；规则仍为 draft，报告不能作为正式合规结论。

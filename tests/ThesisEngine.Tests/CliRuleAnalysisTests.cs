@@ -14,7 +14,7 @@ public sealed class CliRuleAnalysisTests
         var output = new StringWriter();
         var error = new StringWriter();
         var command = NewCommand(output, error);
-        var exitCode = Invoke(command, new[] { "analyze", Fixture("analysis_compliant.docx") }, output, error);
+        var exitCode = Invoke(command, new[] { "analyze", Fixture("analysis/analysis_compliant.docx") }, output, error);
 
         Assert.Equal(0, exitCode);
         Assert.Contains("=== 论文格式检查报告（规则分析）===", output.ToString());
@@ -30,7 +30,7 @@ public sealed class CliRuleAnalysisTests
         var output = new StringWriter();
         var error = new StringWriter();
         var command = NewCommand(output, error);
-        var exitCode = Invoke(command, new[] { "analyze", Fixture("analysis_noncompliant.docx"), "--json" }, output, error);
+        var exitCode = Invoke(command, new[] { "analyze", Fixture("analysis/analysis_noncompliant.docx"), "--json" }, output, error);
 
         Assert.Equal(0, exitCode);
         using var document = JsonDocument.Parse(output.ToString());
@@ -50,7 +50,7 @@ public sealed class CliRuleAnalysisTests
             var command = NewCommand(output, error);
             var exitCode = Invoke(command, new[]
             {
-                "analyze", Fixture("analysis_noncompliant.docx"), "--annotated-output", outputPath
+                "analyze", Fixture("analysis/analysis_noncompliant.docx"), "--annotated-output", outputPath
             }, output, error);
 
             Assert.Equal(0, exitCode);
@@ -73,7 +73,7 @@ public sealed class CliRuleAnalysisTests
         var command = NewCommand(output, error);
         var exitCode = Invoke(command, new[]
         {
-            "analyze", Fixture("analysis_noncompliant.docx"), "--rule-file", ruleFile
+            "analyze", Fixture("analysis/analysis_noncompliant.docx"), "--rule-file", ruleFile
         }, output, error);
 
         Assert.Equal(0, exitCode);
@@ -90,7 +90,7 @@ public sealed class CliRuleAnalysisTests
         var command = NewCommand(output, error);
         var exitCode = Invoke(command, new[]
         {
-            "analyze", Fixture("analysis_compliant.docx"), "--demo", "--profile", "nku-graduate"
+            "analyze", Fixture("analysis/analysis_compliant.docx"), "--demo", "--profile", "nku-graduate"
         }, output, error);
 
         Assert.Equal(2, exitCode);
