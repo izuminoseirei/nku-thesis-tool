@@ -249,12 +249,21 @@ public sealed class FigureTableRewriter
         var body = doc.Root?.Element(W + "body");
         if (body == null) return;
 
+        // 与检测侧同一口径：正文段落与表格内段落都要处理，续表题注常在表格第一行。
         var paragraphs = FigureTableParagraphs.Of(body).ToList();
         int widowCount = 0;
         int captionCount = 0;
 
         foreach (var para in paragraphs)
         {
+            var text = string.Concat(para.Descendants(W + "t").Select(t => t.Value)).Trim();
+            var inTable = para.Ancestors(W + "tc").Any();
+            var captionKind = FigureTableParagraphs.Classify(text);
+
+            // 单元格里的正文段落不处理：Word 不对表格行做孤行拆分，
+            // 写进去只是一批无意义的显式属性。表内题注仍要保护。
+            if (inTable && captionKind is null) continue;
+
             var pPr = para.Element(W + "pPr");
             if (pPr == null)
             {
@@ -272,19 +281,11 @@ public sealed class FigureTableRewriter
 
             // 只对题注做“保持同页”处理。绝不能给所有段落加 keepNext：
             // 那会让整篇文档被串成一块，Word 反而插入大面积空白。
-            var text = string.Concat(para.Descendants(W + "t").Select(t => t.Value)).Trim();
-            if (text.Length == 0 || text.Length > 40) continue;
-
-            var isTableCaption = text.StartsWith("表", StringComparison.Ordinal)
-                || text.StartsWith("Table", StringComparison.OrdinalIgnoreCase);
-            var isFigureCaption = text.StartsWith("图", StringComparison.Ordinal)
-                || text.StartsWith("Figure", StringComparison.OrdinalIgnoreCase)
-                || text.StartsWith("Fig.", StringComparison.OrdinalIgnoreCase);
-            if (!isTableCaption && !isFigureCaption) continue;
+            if (captionKind is null) continue;
 
             // 题注本身不要被拆到两页
             EnsureOrderedProperty(pPr, "keepLines");
-            if (isTableCaption)
+            if (captionKind == CaptionKind.Table)
             {
                 // 表题在表格上方，必须与表格同页
                 EnsureOrderedProperty(pPr, "keepNext");

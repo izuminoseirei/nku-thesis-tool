@@ -142,29 +142,51 @@ public sealed class FigureTableAnalyzer
             && !value.Equals("none", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// 跨页相关的段落设置。
+    ///
+    /// 这几项判的是排版常识，不是规范条文：南开 2026 版没有孤行控制、段中不分页的条款，
+    /// <c>docs/rule-notes/page-setup.md</c> 的 D10 同样标「无条款」。所以措辞是
+    /// 「可能产生大段空白页 / 题注可能被拆到两页」，不写成「违反规范」。
+    /// </summary>
     private static List<string> FindPageBreakIssues(XElement body)
     {
         var issues = new List<string>();
+        // 遍历统一走 FigureTableParagraphs.Of：正文段落与表格内段落都包含，
+        // 续表第一行里的题注不会被漏掉。
         foreach (var paragraph in FigureTableParagraphs.Of(body))
         {
             var properties = paragraph.Element(W + "pPr");
             var text = string.Concat(paragraph.Descendants(W + "t").Select(t => t.Value)).Trim();
+            var inTable = paragraph.Ancestors(W + "tc").Any();
 
+            // 不短路：同一段落可能同时命中多项，只报第一条会让「修完还剩几条」对不上。
             if (IsOn(properties?.Element(W + "pageBreakBefore")))
             {
                 issues.Add($"段落“{Shorten(text)}”设置了段前分页，可能产生大段空白页");
-                continue;
             }
 
-            var isTableCaption = text.StartsWith("表", StringComparison.Ordinal)
-                || text.StartsWith("Table", StringComparison.OrdinalIgnoreCase);
-            if (isTableCaption && text.Length <= 40 && !IsOn(properties?.Element(W + "keepNext")))
+            var captionKind = FigureTableParagraphs.Classify(text);
+            if (captionKind is not null)
             {
-                issues.Add($"表题“{Shorten(text)}”未设置与下段同页，可能与表格分离");
+                // 题注本身不能被拆到两页。
+                if (!IsOn(properties?.Element(W + "keepLines")))
+                {
+                    issues.Add($"题注“{Shorten(text)}”未设置「段中不分页」，题注可能被拆到两页");
+                }
+
+                // 表题在表格上方，必须与表格同页；图题在图下方，不要求 keepNext。
+                if (captionKind == CaptionKind.Table && !IsOn(properties?.Element(W + "keepNext")))
+                {
+                    issues.Add($"表题“{Shorten(text)}”未设置与下段同页，可能与表格分离");
+                }
+
                 continue;
             }
 
-            if (text.Length > 50 && !IsOn(properties?.Element(W + "widowControl")))
+            // 单元格里的正文段落不判孤行控制：Word 对表格行本来就不做孤行拆分，
+            // 硬判会让每个表格都报一串问题。
+            if (!inTable && text.Length > 50 && !IsOn(properties?.Element(W + "widowControl")))
             {
                 issues.Add($"段落“{Shorten(text)}”未开启孤行控制，可能出现跨页孤行");
             }

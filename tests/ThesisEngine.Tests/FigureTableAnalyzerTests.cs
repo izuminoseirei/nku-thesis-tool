@@ -377,6 +377,131 @@ public sealed class FigureTableAnalyzerTests
         }
     }
 
+    /// <summary>
+    /// 题注不能被拆到两页，缺 keepLines 要单独报出来。
+    /// 图题不要求 keepNext（图在图下方），只有表题要求。
+    /// </summary>
+    [Fact]
+    public void CaptionWithoutKeepLinesIsReported()
+    {
+        var path = CreateDocx("""
+            <w:p><w:r><w:t>图1 合成图</w:t></w:r></w:p>
+            """);
+        try
+        {
+            var issues = new FigureTableAnalyzer().Analyze(path).PageBreakIssues;
+
+            Assert.Contains(issues, issue => issue.Contains("段中不分页"));
+            Assert.DoesNotContain(issues, issue => issue.Contains("与下段同页"));
+        }
+        finally { File.Delete(path); }
+    }
+
+    /// <summary>
+    /// 续表的第一行常把题注放进表格单元格。只取 body 的直接子节点会整段漏掉，
+    /// 输出 0 条与「全都合规」无法区分。
+    /// </summary>
+    [Fact]
+    public void CaptionInsideTableCellIsDetected()
+    {
+        var path = CreateDocx("""
+            <w:tbl>
+              <w:tr><w:tc>
+                <w:p><w:r><w:t>表2（续）合成表格</w:t></w:r></w:p>
+              </w:tc></w:tr>
+            </w:tbl>
+            """);
+        try
+        {
+            var issues = new FigureTableAnalyzer().Analyze(path).PageBreakIssues;
+
+            Assert.Contains(issues, issue => issue.Contains("表题"));
+            Assert.Contains(issues, issue => issue.Contains("段中不分页"));
+        }
+        finally { File.Delete(path); }
+    }
+
+    /// <summary>
+    /// 同一段落可能同时命中多项。旧实现命中第一条就 continue，
+    /// 会让「修完还剩几条」对不上。
+    /// </summary>
+    [Fact]
+    public void ParagraphWithSeveralPageBreakProblemsReportsAll()
+    {
+        var path = CreateDocx("""
+            <w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:t>图2 段前分页的题注</w:t></w:r></w:p>
+            """);
+        try
+        {
+            var issues = new FigureTableAnalyzer().Analyze(path).PageBreakIssues;
+
+            Assert.Contains(issues, issue => issue.Contains("段前分页"));
+            Assert.Contains(issues, issue => issue.Contains("段中不分页"));
+        }
+        finally { File.Delete(path); }
+    }
+
+    /// <summary>
+    /// 单元格里的正文段落不判孤行控制：Word 不对表格行做孤行拆分，
+    /// 硬判会让每个表格都报一串问题。
+    /// </summary>
+    [Fact]
+    public void LongTextInsideTableCellIsNotReportedForWidowControl()
+    {
+        var path = CreateDocx("""
+            <w:tbl>
+              <w:tr><w:tc>
+                <w:p><w:r><w:t>这是一段放在表格单元格里的很长正文，用来确认单元格内的段落不会被要求开启孤行控制，因为表格行本身不按孤行拆分，硬判只会制造误报。</w:t></w:r></w:p>
+              </w:tc></w:tr>
+            </w:tbl>
+            """);
+        try
+        {
+            var issues = new FigureTableAnalyzer().Analyze(path).PageBreakIssues;
+
+            Assert.DoesNotContain(issues, issue => issue.Contains("孤行控制"));
+        }
+        finally { File.Delete(path); }
+    }
+
+    /// <summary>
+    /// 修复要和分析对称：表内题注同样加 keepLines/keepNext，
+    /// 否则会出现「检测报、修复不改」的假修复。
+    /// </summary>
+    [Fact]
+    public void PageBreakFixAlsoProtectsCaptionInsideTableCell()
+    {
+        var path = CreateDocx("""
+            <w:tbl>
+              <w:tr><w:tc>
+                <w:p><w:r><w:t>表3（续）表内题注</w:t></w:r></w:p>
+              </w:tc></w:tr>
+            </w:tbl>
+            """);
+        var output = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".docx");
+        try
+        {
+            new FigureTableRewriter().FixPageBreaks(path, output);
+
+            Assert.Empty(new FigureTableAnalyzer().Analyze(output).PageBreakIssues);
+
+            using var archive = ZipFile.OpenRead(output);
+            using var reader = new StreamReader(archive.GetEntry("word/document.xml")!.Open());
+            var xml = XDocument.Load(reader);
+            XNamespace w = W;
+            var caption = xml.Descendants(w + "p")
+                .First(paragraph => string.Concat(paragraph.Descendants(w + "t").Select(t => t.Value)).StartsWith("表3"));
+            var properties = caption.Element(w + "pPr");
+            Assert.NotNull(properties?.Element(w + "keepLines"));
+            Assert.NotNull(properties?.Element(w + "keepNext"));
+        }
+        finally
+        {
+            File.Delete(path);
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
     private static string Table(string borderXml) =>
         $"<w:tbl><w:tblPr>{borderXml}</w:tblPr>"
         + "<w:tr><w:tc><w:p><w:r><w:t>项目</w:t></w:r></w:p></w:tc>"
