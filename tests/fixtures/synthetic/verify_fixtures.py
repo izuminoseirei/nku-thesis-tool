@@ -31,12 +31,13 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 # (目录, 生成器文件, 样本清单来源, 构建函数)
-# 四个生成器同形：清单是 SAMPLES，构建函数接受样本名并返回 docx 字节。
+# 五个生成器同形：清单是 SAMPLES，构建函数接受样本名并返回 docx 字节。
 GENERATORS = [
     ("document", "generate.py", "SAMPLES", "build_bytes"),
     ("formula", "generate.py", "SAMPLES", "build"),
     ("demo", "generate_samples.py", "SAMPLES", "build_bytes"),
     ("demo", "generate_checked_sample.py", "SAMPLES", "build_bytes"),
+    ("citation-footnotes", "generate.py", "SAMPLES", "build_bytes"),
 ]
 
 # (目录, 生成器文件, 结构校验函数)；只做维度断言，不在内存重建 docx
@@ -60,6 +61,7 @@ LIST_SOURCES = [
     ("demo", "generate_checked_sample.py", "SAMPLES"),
     ("format-samples", "generate.py", "SAMPLES"),
     ("full-thesis", "generate.py", "SAMPLES"),
+    ("citation-footnotes", "generate.py", "SAMPLES"),
 ]
 
 # (目录, 是否比对生成器清单)
@@ -69,6 +71,7 @@ LIST_SPECS = [
     ("demo", True),
     ("format-samples", True),
     ("full-thesis", True),
+    ("citation-footnotes", True),
 ]
 
 
@@ -145,7 +148,7 @@ def sample_names(source):
     """把清单常量拆成样本名列表。
 
     dict 型（format-samples/document/formula 用它登记配置或 XML）取 key，
-    序列型直接用元素，单值常量包成单元素列表。六份生成器的构建函数都吃
+    序列型直接用元素，单值常量包成单元素列表。七份生成器的构建函数都吃
     样本名，所以这里只需要名字，不需要把配置递下去。
     """
     if isinstance(source, dict):

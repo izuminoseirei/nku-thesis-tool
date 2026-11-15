@@ -47,6 +47,12 @@ if (args.Length > 0 && string.Equals(args[0], "analyze-formula", StringCompariso
     return command.Execute(args[1..]);
 }
 
+if (args.Length > 0 && string.Equals(args[0], "analyze-footnotes", StringComparison.OrdinalIgnoreCase))
+{
+    var command = new FootnoteAnalyzeCommand();
+    return command.Execute(args[1..]);
+}
+
 if (args.Length > 0 && string.Equals(args[0], "apply-figure-format", StringComparison.OrdinalIgnoreCase))
 {
     var command = new ApplyFigureFormatCommand();
