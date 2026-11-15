@@ -1,0 +1,38 @@
+{
+  "sample_set": "citation-footnotes/footnote-style",
+  "purpose": "Issue #153 注释体例检查：是否走页下注、序号形态、每页重编号、与正文引用编号混用。只查不改。",
+  "formal_compliance": false,
+  "status": "synthetic",
+  "generator": "generate.py",
+  "generation_command": "python3 generate.py",
+  "check_command": "python3 generate.py --check",
+  "source_note": "全部内容为人工构造的最小 docx，不含真实论文、个人信息或他人成果；没有用 Word 打开过，也没有实机截图。",
+  "disclaimer": "样本只验证检查逻辑是否按预期报出问题。合规样本的 0 条结果不等于论文合规，也不代表脚注在 Word 里渲染正确。",
+  "spec_source_note": "依据见 docs/research/discipline-specs-2026-11-11.md：D3 南开本科手册（注释一律页下注、序号 ①②③、每页独立编号）、D2 中南大学研究生规范 §9（顺序编码制与页下注并存，按学科惯例择一）。两种口径由 FootnoteStyleProfile 区分，规范值不写死在检查逻辑里；rules/ 里的口径值由负责人补。",
+  "containerNormalization": {
+    "when": "2026-11-15",
+    "whatChanged": "条目顺序固定为 7 个部件，date_time 统一 (2000, 1, 1, 0, 0, 0)，与 full-thesis / format-samples 同一常量；--check 直接比整文件字节。",
+    "why": "ZIP 默认把当前时刻写进条目时间戳，不固定则同一生成器换分钟跑出的字节不同，整文件哈希不能当判据。"
+  },
+  "samples": [
+    {
+      "file": "footnote_compliant.docx",
+      "description": "南开口径：w:numFmt=decimalEnclosedCircle、w:numRestart=eachPage、注释走 w:footnoteReference、脚注正文不含 [n]、正文无随文注",
+      "expected_issue_count": 0,
+      "expected_issues": [],
+      "sha256": "2CF9A2C4F6F67B90A02F68AD9B848A4FA76C48B4F34B8F6A6CFC518FB61EE091"
+    },
+    {
+      "file": "footnote_noncompliant.docx",
+      "description": "四条各命中一次：正文写随文注、numFmt=decimal、缺 numRestart、脚注正文出现 [1] 与正文引用混用",
+      "expected_issue_count": 4,
+      "expected_issues": [
+        { "code": "InlineNote", "paragraph": 2 },
+        { "code": "NumberFormatMismatch", "paragraph": null },
+        { "code": "RestartUndetermined", "paragraph": null },
+        { "code": "MixedWithCitation", "paragraph": 1 }
+      ],
+      "sha256": "8764878ACF74A13BFE2D0B3FB6733769CC89B03826A046EDE0720A2A657F5CA8"
+    }
+  ]
+}
