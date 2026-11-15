@@ -293,9 +293,87 @@ public sealed class FigureTableRewriter
             captionCount++;
         }
 
+        var imageCount = ProtectImagesWithCaption(body);
+        var rowCount = ProtectTableRows(body);
+
         WriteDocumentXml(inputPath, outputPath, doc);
-        Console.WriteLine($"已为 {paragraphs.Count} 个段落设置孤行控制（新增 {widowCount}）,并处理 {captionCount} 条图表题注的跨页保护");
+        Console.WriteLine(
+            $"已为 {paragraphs.Count} 个段落设置孤行控制（新增 {widowCount}），处理 {captionCount} 条图表题注、"
+            + $"{imageCount} 处图片-图题同页、{rowCount} 行表格行的跨页保护");
     }
+
+    /// <summary>
+    /// 图题在图下方，真正需要「与下段同页」的是图片所在段落，而不是图题本身。
+    /// 只处理「下一段确实是图题」的图片段落，避免把整篇文档串成一块。
+    /// </summary>
+    private static int ProtectImagesWithCaption(XElement body)
+    {
+        var elements = body.Elements().ToList();
+        var count = 0;
+        for (var index = 0; index < elements.Count; index++)
+        {
+            var element = elements[index];
+            if (element.Name != W + "p") continue;
+            if (!element.Descendants().Any(e => e.Name.LocalName == "blip")) continue;
+
+            var next = index + 1 < elements.Count ? elements[index + 1] : null;
+            if (next is not { Name.LocalName: "p" }) continue;
+            if (FigureTableParagraphs.Classify(FigureTableParagraphs.Text(next)) != CaptionKind.Figure) continue;
+
+            var pPr = element.Element(W + "pPr");
+            if (pPr == null)
+            {
+                pPr = new XElement(W + "pPr");
+                element.AddFirst(pPr);
+            }
+
+            if (pPr.Element(W + "keepNext") == null) count++;
+            EnsureOrderedProperty(pPr, "keepNext");
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// 表格行默认允许跨页断开：一行文字会被劈到两页；长表格跨页后第二页也没有表头。
+    /// 这里给每行加 <c>cantSplit</c>，并把首行标成重复表头（Word 只在表格真的跨页时才重复）。
+    /// </summary>
+    private static int ProtectTableRows(XElement body)
+    {
+        var count = 0;
+        foreach (var table in body.Elements(W + "tbl"))
+        {
+            var rows = table.Elements(W + "tr").ToList();
+            for (var index = 0; index < rows.Count; index++)
+            {
+                var rowProperties = rows[index].Element(W + "trPr");
+                if (rowProperties == null)
+                {
+                    rowProperties = new XElement(W + "trPr");
+                    rows[index].AddFirst(rowProperties);
+                }
+
+                if (rowProperties.Element(W + "cantSplit") == null)
+                {
+                    // trPr 的开关元素不要写 w:val="1"：Office2019 的 OpenXmlValidator
+                    // 对 cantSplit/tblHeader 的 val 走枚举约束，"1" 会被判为非法值，
+                    // Word 打开时报文件损坏。空元素本身即表示启用。
+                    InsertRowProperty(rowProperties, new XElement(W + "cantSplit"));
+                    count++;
+                }
+
+                if (index == 0 && rows.Count > 1 && rowProperties.Element(W + "tblHeader") == null)
+                {
+                    InsertRowProperty(rowProperties, new XElement(W + "tblHeader"));
+                }
+            }
+        }
+
+        return count;
+    }
+
+    private static void InsertRowProperty(XElement rowProperties, XElement child) =>
+        InsertOrdered(rowProperties, child, TableRowPropertySequence);
 
     /// <summary>
     /// 按 OOXML 规定的 <c>w:pPr</c> 子元素顺序插入开关属性。
@@ -366,6 +444,12 @@ public sealed class FigureTableRewriter
         "cnfStyle", "tcW", "gridSpan", "hMerge", "vMerge", "tcBorders", "shd", "noWrap", "tcMar",
         "textDirection", "tcFitText", "vAlign", "hideMark", "headers", "cellIns", "cellDel",
         "cellMerge", "tcPrChange"
+    };
+
+    private static readonly string[] TableRowPropertySequence =
+    {
+        "cnfStyle", "divId", "gridBefore", "gridAfter", "wBefore", "wAfter", "cantSplit", "trHeight",
+        "tblHeader", "tblCellSpacing", "jc", "hidden", "ins", "del", "trPrChange"
     };
 
     private static readonly string[] ParagraphPropertySequence =
