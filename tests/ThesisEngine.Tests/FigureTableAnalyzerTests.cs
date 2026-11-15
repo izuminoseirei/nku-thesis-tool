@@ -297,6 +297,76 @@ public sealed class FigureTableAnalyzerTests
         }
     }
 
+    [Fact]
+    public void FigureParagraphWithoutKeepNextIsReportedAndFixed()
+    {
+        var path = CreateDocx("""
+            <w:p><w:r><w:blip/></w:r></w:p>
+            <w:p><w:r><w:t>图1-1 合成图片</w:t></w:r></w:p>
+            """);
+        var output = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".docx");
+        try
+        {
+            var before = new FigureTableAnalyzer().Analyze(path).PageBreakIssues;
+            Assert.Contains(before, issue => issue.Contains("图片段落未设置"));
+
+            new FigureTableRewriter().FixPageBreaks(path, output);
+
+            Assert.DoesNotContain(new FigureTableAnalyzer().Analyze(output).PageBreakIssues,
+                issue => issue.Contains("图片段落未设置"));
+
+            using var archive = ZipFile.OpenRead(output);
+            using var reader = new StreamReader(archive.GetEntry("word/document.xml")!.Open());
+            var xml = XDocument.Load(reader);
+            XNamespace w = W;
+            var figure = xml.Descendants(w + "p").First(p => p.Descendants(w + "blip").Any());
+            Assert.NotNull(figure.Element(w + "pPr")?.Element(w + "keepNext"));
+        }
+        finally
+        {
+            File.Delete(path);
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
+    [Fact]
+    public void TableRowsWithoutCantSplitOrRepeatingHeaderAreReportedAndFixed()
+    {
+        var path = CreateDocx("""
+            <w:tbl><w:tblPr/>
+              <w:tr><w:tc><w:p><w:r><w:t>表头</w:t></w:r></w:p></w:tc></w:tr>
+              <w:tr><w:tc><w:p><w:r><w:t>数据</w:t></w:r></w:p></w:tc></w:tr>
+            </w:tbl>
+            """);
+        var output = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".docx");
+        try
+        {
+            var before = new FigureTableAnalyzer().Analyze(path).PageBreakIssues;
+            Assert.Contains(before, issue => issue.Contains("未禁止跨页断行"));
+            Assert.Contains(before, issue => issue.Contains("跨页重复表头"));
+
+            new FigureTableRewriter().FixPageBreaks(path, output);
+
+            var after = new FigureTableAnalyzer().Analyze(output).PageBreakIssues;
+            Assert.DoesNotContain(after, issue => issue.Contains("未禁止跨页断行"));
+            Assert.DoesNotContain(after, issue => issue.Contains("跨页重复表头"));
+
+            using var archive = ZipFile.OpenRead(output);
+            using var reader = new StreamReader(archive.GetEntry("word/document.xml")!.Open());
+            var xml = XDocument.Load(reader);
+            XNamespace w = W;
+            var rows = xml.Descendants(w + "tr").ToList();
+            Assert.All(rows, row => Assert.NotNull(row.Element(w + "trPr")?.Element(w + "cantSplit")));
+            Assert.NotNull(rows[0].Element(w + "trPr")?.Element(w + "tblHeader"));
+            Assert.Null(rows[1].Element(w + "trPr")?.Element(w + "tblHeader"));
+        }
+        finally
+        {
+            File.Delete(path);
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
     private static string Table(string borderXml) =>
         $"<w:tbl><w:tblPr>{borderXml}</w:tblPr>"
         + "<w:tr><w:tc><w:p><w:r><w:t>项目</w:t></w:r></w:p></w:tc>"

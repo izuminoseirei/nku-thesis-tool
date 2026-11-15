@@ -170,8 +170,65 @@ public sealed class FigureTableAnalyzer
             }
         }
 
+        issues.AddRange(FindObjectCrossPageIssues(body));
         return issues;
     }
+
+    /// <summary>
+    /// 图片与表格自身的跨页设置：图片段落要和下方图题同页、表格行不该被拆到两页、
+    /// 首行应设为跨页重复表头。这三项在 Word 里都挂在「段落」/「表格属性」上，
+    /// 漏设时的表现就是图题分家、一行字被劈成两页、跨页后第二页没有表头。
+    /// </summary>
+    private static List<string> FindObjectCrossPageIssues(XElement body)
+    {
+        var issues = new List<string>();
+        var elements = body.Elements().ToList();
+        var tableNumber = 0;
+
+        for (var index = 0; index < elements.Count; index++)
+        {
+            var element = elements[index];
+
+            if (element.Name == W + "p")
+            {
+                if (!ContainsImage(element)) continue;
+
+                var next = index + 1 < elements.Count ? elements[index + 1] : null;
+                if (next is not { Name.LocalName: "p" }) continue;
+                if (FigureTableParagraphs.Classify(FigureTableParagraphs.Text(next)) != CaptionKind.Figure) continue;
+
+                if (!IsOn(element.Element(W + "pPr")?.Element(W + "keepNext")))
+                {
+                    issues.Add("图片段落未设置“与下段同页”，跨页时图片会和下方图题分离");
+                }
+
+                continue;
+            }
+
+            if (element.Name != W + "tbl") continue;
+
+            tableNumber++;
+            var rows = element.Elements(W + "tr").ToList();
+            for (var row = 0; row < rows.Count; row++)
+            {
+                var rowProperties = rows[row].Element(W + "trPr");
+                if (!IsOn(rowProperties?.Element(W + "cantSplit")))
+                {
+                    issues.Add($"表格 {tableNumber} 第 {row + 1} 行未禁止跨页断行，该行可能被拆到两页");
+                }
+            }
+
+            if (rows.Count > 1 && !IsOn(rows[0].Element(W + "trPr")?.Element(W + "tblHeader")))
+            {
+                issues.Add($"表格 {tableNumber} 首行未设为跨页重复表头，跨页后第二页没有表头");
+            }
+        }
+
+        return issues;
+    }
+
+    private static bool ContainsImage(XElement paragraph) =>
+        paragraph.Descendants().Any(e => e.Name.LocalName == "blip");
 
     /// <summary>读取开关型段落属性：元素存在即视为开启，val=0/false/off 视为关闭。</summary>
     private static bool IsOn(XElement? element)
