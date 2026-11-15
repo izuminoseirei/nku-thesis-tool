@@ -11,7 +11,7 @@ public sealed class RuleAnalysisTests
     [Fact]
     public void CompliantSampleHasZeroFindingsButNonEmptyUncheckedList()
     {
-        var result = new RuleAnalysisService().Analyze(Fixture("analysis_compliant.docx"));
+        var result = new RuleAnalysisService().Analyze(Fixture("analysis/analysis_compliant.docx"));
 
         Assert.Equal("draft", result.RuleSet.Status);
         Assert.Empty(result.Findings);
@@ -25,7 +25,7 @@ public sealed class RuleAnalysisTests
     [Fact]
     public void NoncompliantSampleReportsEveryDeliberateBodyDeviation()
     {
-        var result = new RuleAnalysisService().Analyze(Fixture("analysis_noncompliant.docx"));
+        var result = new RuleAnalysisService().Analyze(Fixture("analysis/analysis_noncompliant.docx"));
 
         Assert.Equal(8, result.Findings.Count);
         Assert.Equal(8, result.Findings.Sum(finding => finding.Occurrences.Count));
@@ -44,7 +44,7 @@ public sealed class RuleAnalysisTests
     [Fact]
     public void ThreeStatesArePresentInOneRun()
     {
-        var result = new RuleAnalysisService().Analyze(Fixture("analysis_noncompliant.docx"));
+        var result = new RuleAnalysisService().Analyze(Fixture("analysis/analysis_noncompliant.docx"));
 
         Assert.True(result.PassedChecks > 0);
         Assert.True(result.FailedChecks > 0);
@@ -105,7 +105,7 @@ public sealed class RuleAnalysisTests
     [Fact]
     public void JsonOutputContainsCoverageFindingsAndUncheckedItems()
     {
-        var result = new RuleAnalysisService().Analyze(Fixture("analysis_noncompliant.docx"));
+        var result = new RuleAnalysisService().Analyze(Fixture("analysis/analysis_noncompliant.docx"));
         var json = RuleAnalysisReportWriter.ToJson(result);
 
         using var document = JsonDocument.Parse(json);
@@ -124,7 +124,7 @@ public sealed class RuleAnalysisTests
     [Fact]
     public void TextOutputNeverClaimsPlaceholderOrFullCompliance()
     {
-        var result = new RuleAnalysisService().Analyze(Fixture("analysis_noncompliant.docx"));
+        var result = new RuleAnalysisService().Analyze(Fixture("analysis/analysis_noncompliant.docx"));
         var text = RuleAnalysisReportWriter.ToText(result);
 
         Assert.Contains("=== 论文格式检查报告（规则分析）===", text);
@@ -138,11 +138,11 @@ public sealed class RuleAnalysisTests
     [Fact]
     public void AnnotatedCopyIsCreatedFromParagraphFindings()
     {
-        var result = new RuleAnalysisService().Analyze(Fixture("analysis_noncompliant.docx"));
+        var result = new RuleAnalysisService().Analyze(Fixture("analysis/analysis_noncompliant.docx"));
         var output = Path.Combine(Path.GetTempPath(), $"thesis-annotated-{Guid.NewGuid():N}.docx");
         try
         {
-            var written = WordAnnotationWriter.WriteAnnotatedCopy(Fixture("analysis_noncompliant.docx"), output, result.BuildDiagnostics());
+            var written = WordAnnotationWriter.WriteAnnotatedCopy(Fixture("analysis/analysis_noncompliant.docx"), output, result.BuildDiagnostics());
             Assert.Equal(Path.GetFullPath(output), written);
             Assert.True(File.Exists(output));
             Assert.True(new FileInfo(output).Length > 0);
@@ -197,7 +197,7 @@ public sealed class RuleAnalysisTests
             """);
         try
         {
-            var result = new RuleAnalysisService().Analyze(Fixture("analysis_noncompliant.docx"), "report-switch", ruleFile);
+            var result = new RuleAnalysisService().Analyze(Fixture("analysis/analysis_noncompliant.docx"), "report-switch", ruleFile);
             Assert.Empty(result.Findings);
             Assert.True(result.SuppressedFindings > 0);
             Assert.Contains(result.Coverage, row => row.RuleId == "NKU-REQ-902" && row.Failures > 0);
@@ -212,7 +212,7 @@ public sealed class RuleAnalysisTests
     [Fact]
     public void LayoutProbeReadsSectionsIndentAndBold()
     {
-        var probe = new DocxLayoutProbe().Read(Fixture("analysis_compliant.docx"));
+        var probe = new DocxLayoutProbe().Read(Fixture("analysis/analysis_compliant.docx"));
 
         var section = Assert.Single(probe.Sections);
         Assert.Equal("A4", section.PageSize);
