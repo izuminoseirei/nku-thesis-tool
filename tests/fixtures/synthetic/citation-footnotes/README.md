@@ -49,3 +49,9 @@ python generate.py --manifest # 打印 sha256，用于回填 manifest.json
 
 零依赖，只用标准库。ZIP 条目顺序与 `date_time` 固定，`--check` 比整文件字节。
 清单三方一致由仓库根目录的 `verify_fixtures.py` 统一核对。
+
+**注意**：根目录 `.gitignore` 第 9 行是 `*.docx`，只给 `full-thesis/`、`formula/`、`document/`
+等旧目录开了 `!` 白名单，本目录不在其中。所以往本目录新增样本时必须
+`git add -f <文件>`，否则文件不会进提交，本机测全绿但 CI 上会因缺样本而红。
+彻底解法是给 `.gitignore` 补一行例外，那属于仓库工程配置，由负责人处理，
+本 PR 不擅自改。
