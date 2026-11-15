@@ -359,6 +359,16 @@ public sealed class FigureTableAnalyzerTests
             Assert.All(rows, row => Assert.NotNull(row.Element(w + "trPr")?.Element(w + "cantSplit")));
             Assert.NotNull(rows[0].Element(w + "trPr")?.Element(w + "tblHeader"));
             Assert.Null(rows[1].Element(w + "trPr")?.Element(w + "tblHeader"));
+
+            // 回归：cantSplit / tblHeader 不能带 w:val="1"，Office2019 校验会判非法值。
+            Assert.All(rows, row =>
+            {
+                Assert.Null(row.Element(w + "trPr")?.Element(w + "cantSplit")?.Attribute(w + "val"));
+                Assert.Null(row.Element(w + "trPr")?.Element(w + "tblHeader")?.Attribute(w + "val"));
+            });
+            // 完整 OOXML 合法性由 ThreeLineRewriteMakesTableIssuesDisappear 在
+            // synthetic_object_layout_errors.docx 上用 OpenXmlValidator 覆盖；
+            // 这里的 CreateDocx 极简包没有 MainDocumentPart 关系，不做整包校验。
         }
         finally
         {

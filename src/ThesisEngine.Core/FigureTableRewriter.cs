@@ -355,13 +355,16 @@ public sealed class FigureTableRewriter
 
                 if (rowProperties.Element(W + "cantSplit") == null)
                 {
-                    InsertRowProperty(rowProperties, new XElement(W + "cantSplit", new XAttribute(W + "val", "1")));
+                    // trPr 的开关元素不要写 w:val="1"：Office2019 的 OpenXmlValidator
+                    // 对 cantSplit/tblHeader 的 val 走枚举约束，"1" 会被判为非法值，
+                    // Word 打开时报文件损坏。空元素本身即表示启用。
+                    InsertRowProperty(rowProperties, new XElement(W + "cantSplit"));
                     count++;
                 }
 
                 if (index == 0 && rows.Count > 1 && rowProperties.Element(W + "tblHeader") == null)
                 {
-                    InsertRowProperty(rowProperties, new XElement(W + "tblHeader", new XAttribute(W + "val", "1")));
+                    InsertRowProperty(rowProperties, new XElement(W + "tblHeader"));
                 }
             }
         }
